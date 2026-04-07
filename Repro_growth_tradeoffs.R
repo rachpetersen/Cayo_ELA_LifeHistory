@@ -3,10 +3,12 @@
 ####### Trade-offs #######
 ##########################
 
+library(tidyverse)
 library(interactions)
 library(jtools)
 library(ggthemes)
 
+pal <- ggthemes::tableau_color_pal(palette="Green-Orange-Teal")(12)
 
 Subadult_repro_growth<- readRDS("Subadult_repro_growth.rds")
 
@@ -15,13 +17,11 @@ bodysize_AFB<-lmer(AgeFirstBirthYrs ~ residual_size + (1|Birth.Season) + (1|Nata
 summary(bodysize_AFB)
 bodysize_AFB_results<-summary(bodysize_AFB) 
 bodysize_AFB_df<-bodysize_AFB_results$coefficients
-#write.csv(bodysize_AFB_df, "bodysize_AFB_results.csv")
 
 #plot negative relationship
 bodysize_AFB_plot<-effect_plot(bodysize_AFB, pred = residual_size, interval = TRUE, plot.points = TRUE, line.colors=pal[1], point.size=0.5) +
-  labs(y="Age at first birth (years)", x="Sub-adult residual body weight", color="")+
+  labs(y="Age at first birth (years)", x="Sub-adult residual body weight")+
   theme_bw(14); bodysize_AFB_plot
-#ggsave("bodysize_AFB_plot.pdf", bodysize_AFB_plot, height=3.5, width=3.5)
 
 
 ## Is this moderated by ELA??? #Can't test hurricane, no one experienced a hurricane
@@ -85,11 +85,8 @@ results <- rbind(results, data.frame(Predictor = predictor,
 
 
 results$padjust<-p.adjust(results$pvalue, method="BH")
-#write.table(results, "ReproGrowthInt_modelresults_22Apr25.txt", quote=F)
 
-#plot group size results
-groupsize_inter_plot<-interact_plot(ReproGrowthInt_s_grpsize_model, data= Subadult_repro_growth, pred = residual_size, modx= s_grpsize, interval = TRUE, plot.points = TRUE, line.colors="blue", point.size=0.5) +
-  theme_bw(); groupsize_inter_plot
+write.table(results, "ReproGrowthInt_modelresults_7Apr26.txt", quote=F)
 
 #Plot as binned 
 # calculate mean +/- 1 SD for size
@@ -114,8 +111,8 @@ pred <- predict(ReproGrowthInt_s_grpsize_model, newdata = new_data, re.form = NA
 
 new_data$fit <- pred$fit
 new_data$se.fit <- pred$se.fit
-new_data$lower <- pred$fit - pred$se.fit
-new_data$upper <- pred$fit + pred$se.fit
+new_data$lower <- pred$fit - 1.96 * pred$se.fit
+new_data$upper <- pred$fit + 1.96 * pred$se.fit
 
 # add labels for the binned body weight and group size values
 new_data$binsize <- factor(
@@ -159,20 +156,15 @@ Groupsize_interaction<-ggplot(data=new_data, aes(y=fit, x=binsize, color=binsize
   scale_color_manual(values=c(pal[2], "#336a35")) +
   labs(y="Age at first birth (years)", x="Sub-adult residual body weight", color=""); Groupsize_interaction
 
-ggsave("Groupsize_interaction.pdf", Groupsize_interaction, width=3.5, height=4)
-
-
-#Relationship between adult body size and reproductive rate
+# Does residual body weight in adulthood predict reproductive rate
 
 Repro_growth_morethan4<- readRDS("Adult_repro_growth.rds")
 
 # are proportion of seasons giving birth and residual body weight associated across everyone?
-
 model <- glmer(cbind(NumberBirths, SeasonSpan - NumberBirths) ~ residual_size + s_group_size_DOM + s_KinCountGrowthR + (1|Birth.Season) + (1|NatalGroup), data = Repro_growth_morethan4, family = binomial(link = "logit"))
 summary(model)
 bodysize_propbirth_results<-summary(model) 
 bodysize_propbirth_df<-bodysize_propbirth_results$coefficients
-#write.csv(bodysize_propbirth_df, "bodysize_propbirth_results.csv")
 
 #plot
 bodysize_PropBirth_plot<-effect_plot(model, pred = residual_size, interval = TRUE, plot.points = FALSE, line.colors=pal[1]) +
@@ -180,7 +172,6 @@ bodysize_PropBirth_plot<-effect_plot(model, pred = residual_size, interval = TRU
   ylab("Proportion of years giving birth") +
   xlab("Adult residual body weight") +
   theme_bw(14); bodysize_PropBirth_plot
-#ggsave("bodysize_PropBirth_plot.pdf", bodysize_PropBirth_plot, height=3.5, width=3.5)
 
 
 
@@ -247,25 +238,12 @@ results <- rbind(results, data.frame(Predictor = predictor,
 
 results$padjust<-p.adjust(results$pvalue, method="BH")
 
-#write.table(results, "ReproAdultweightInt_modelresults_22Apr25.txt", quote=F)
-
-
-sib_adult_inter_plot<-interact_plot(ReproAdultweightInt_CompetingSibIndex_model, data= Repro_growth_morethan4, pred = residual_size, modx= CompetingSibIndex, interval = TRUE, plot.points = FALSE, line.colors="blue", point.size=0.5); sib_adult_inter_plot
-
-ml_adult_inter_plot<-interact_plot(ReproAdultweightInt_MomAllLossType_model, data= Repro_growth_morethan4, pred = residual_size, modx= MomAllLossType, interval = TRUE, plot.points = FALSE, line.colors="blue", point.size=0.5); ml_adult_inter_plot
-
-primp_adult_inter_plot<-interact_plot(ReproAdultweightInt_PrimpIndex_model, data= Repro_growth_morethan4, pred = residual_size, modx= PrimpIndex, interval = TRUE, plot.points = FALSE, line.colors="blue", point.size=0.5); primp_adult_inter_plot
-
-
 #Plot Competing sibling results as binned
-
-### Model predictions
 # calculate mean +/- 1 SD for body weight
 mean_weight <- mean(Repro_growth_morethan4$residual_size, na.rm=T)
 sd_weight <- sd(Repro_growth_morethan4$residual_size, na.rm=T)
 weight_values <- c(mean_weight + (1*sd_weight), mean_weight, mean_weight - (1*sd_weight))
 #gives residual size values for big medium small
-
 
 # Create a grid of mean, +/- 1 SD for size ELA 0 or 1
 new_data <- expand.grid(
@@ -276,8 +254,8 @@ new_data <- expand.grid(
 pred <- predict(ReproAdultweightInt_CompetingSibIndex_model, newdata = new_data, re.form = NA, type="response", se.fit=TRUE)
 new_data$fit <- pred$fit
 new_data$se.fit <- pred$se.fit
-new_data$lower <- pred$fit - pred$se.fit
-new_data$upper <- pred$fit + pred$se.fit
+new_data$lower <- pred$fit - 1.96 * pred$se.fit
+new_data$upper <- pred$fit + 1.96 * pred$se.fit
 
 # Add labels for the binned body weight values
 new_data$binsize <- factor(
@@ -300,9 +278,9 @@ new_data<-new_data %>%
 custom_labels <- c("0" = "No", "1" = "Yes")
 
 SibAdult_interaction<-ggplot(data=new_data, aes(y=fit, x=binsize, color=binsize)) +
+  geom_jitter(data=real_data, aes(y=NumberBirths/SeasonSpan, x=binsize), color="black", width=0.2, height=0.01, size=0.3) +
   geom_errorbar(data=new_data, aes(ymin=lower, ymax=upper), size=1.5,  width=0.3, position = position_dodge(width = 0.75))+
   geom_point(data=new_data, aes(y=fit, x=binsize, color=binsize), size=3, position = position_dodge(width = 0.75)) +
-  geom_jitter(data=real_data, aes(y=NumberBirths/SeasonSpan, x=binsize), color="black", width=0.2, height=0.01, size=0.3) +
   facet_wrap(~CompetingSibIndex, labeller=labeller(CompetingSibIndex = custom_labels)) +
   theme_minimal()+
   ggtitle("Competing Sibling") +
@@ -310,11 +288,6 @@ SibAdult_interaction<-ggplot(data=new_data, aes(y=fit, x=binsize, color=binsize)
   theme(plot.title= element_text(hjust=0.5), strip.text=element_text(size=12, face="bold"), legend.position="none") +
   scale_color_manual(values=c(pal[2], "#336a35")) +
   labs(y="Proportion of years giving birth", x="Adult residual body weight", color=""); SibAdult_interaction
-
-ggsave("Sib_adult_interaction.pdf", SibAdult_interaction, width=3.5, height=4)
-
-
-
 
 #Plot Maternal loss results as binned
 
@@ -335,8 +308,8 @@ pred <- predict(ReproAdultweightInt_MomAllLossType_model, newdata = new_data, re
 
 new_data$fit <- pred$fit
 new_data$se.fit <- pred$se.fit
-new_data$lower <- pred$fit - pred$se.fit
-new_data$upper <- pred$fit + pred$se.fit
+new_data$lower <- pred$fit - 1.96 * pred$se.fit
+new_data$upper <- pred$fit + 1.96 * pred$se.fit
 
 # Add labels for the binned body weightvalues
 new_data$binsize <- factor(
@@ -359,9 +332,9 @@ new_data<-new_data %>%
 custom_labels <- c("0" = "No", "1" = "Yes")
 
 MLAdult_interaction<-ggplot(data=new_data, aes(y=fit, x=binsize, color=binsize)) +
+  geom_jitter(data=real_data, aes(y=NumberBirths/SeasonSpan, x=binsize), color="black", width=0.2, height=0.01, size=0.3) +
   geom_errorbar(data=new_data, aes(ymin=lower, ymax=upper), size=1.5,  width=0.3, position = position_dodge(width = 0.75))+
   geom_point(data=new_data, aes(y=fit, x=binsize, color=binsize), size=3, position = position_dodge(width = 0.75)) +
-  geom_jitter(data=real_data, aes(y=NumberBirths/SeasonSpan, x=binsize), color="black", width=0.2, height=0.01, size=0.3) +
   facet_wrap(~MomAllLossType, labeller=labeller(MomAllLossType=custom_labels)) +
   theme_minimal()+
   ggtitle("Maternal Loss") +
@@ -369,6 +342,3 @@ MLAdult_interaction<-ggplot(data=new_data, aes(y=fit, x=binsize, color=binsize))
   theme(plot.title= element_text(hjust=0.5), strip.text=element_text(size=12, face="bold"), legend.position="none") +
   scale_color_manual(values=c(pal[2], "#336a35")) +
   labs(y="Proportion of years giving birth", x="Adult residual body weight", color=""); MLAdult_interaction
-
-ggsave("ML_adult_interaction.pdf", MLAdult_interaction, width=3.5, height=4)
-
